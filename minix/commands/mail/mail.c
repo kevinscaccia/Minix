@@ -1,7 +1,6 @@
-/*  mail - send/receive mail 		 Author: Peter S. Housel */
-/* Version 0.2 of September 1990: added -e, -t, * options - cwr */
-
-/* 2003-07-18: added -s option - ASW */
+/*
+KEVIN
+*/
 
 #include <sys/types.h>
 #include <sys/stat.h>
