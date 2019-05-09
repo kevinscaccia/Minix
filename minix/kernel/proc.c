@@ -2,6 +2,9 @@
 #include <signal.h>
 #include <assert.h>
 #include <string.h>
+#include <stdlib.h>
+#include <time.h>
+
 
 #include "vm.h"
 #include "clock.h"
@@ -1564,11 +1567,6 @@ asyn_error:
 void enqueue(
   register struct proc *rp	/* this process is now runnable */
 ){
-/* This function is responsible for inserting a process into one of 
- * the scheduling queues. 
- * The mechanism is implemented here.   
- * The actual scheduling policy is defined in sched() and pick_proc().
- */
   int q = rp->p_priority;	 		/* scheduling queue to use */
   struct proc **rdy_head, **rdy_tail;
   assert(proc_is_runnable(rp));
@@ -1576,9 +1574,9 @@ void enqueue(
   rdy_head = get_cpu_var(rp->p_cpu, run_q_head);
   rdy_tail = get_cpu_var(rp->p_cpu, run_q_tail);
   /////////////////////////////
-  // Inicio do Mecanismo 
-  // Inicio do Mecanismo 
-  // Inicio do Mecanismo 
+  // Inicio do Mecanismo de Sorteio
+  // Inicio do Mecanismo de Sorteio
+  // Inicio do Mecanismo de Sorteio 
   /////////////////////////////
   if (!rdy_head[q]) {		/* empty queue */
   	rdy_head[q] = rdy_tail[q] = rp; 		/* create a queue */
@@ -1603,9 +1601,9 @@ void enqueue(
 
   }
   /////////////////////////////
-  // Fim do Mecanismo 
-  // Fim do Mecanismo 
-  // Fim do Mecanismo 
+  // Fim do Mecanismo de Sorteio 
+  // Fim do Mecanismo de Sorteio 
+  // Fim do Mecanismo de Sorteio 
   /////////////////////////////
 
   // Preepção do atual assim que posto na fila
@@ -1766,34 +1764,48 @@ void dequeue(struct proc *rp)
 /*===========================================================================*
  *				pick_proc				     * 
  *===========================================================================*/
-static struct proc * pick_proc(void)
-{
-/* Decide who to run now.  A new process is selected and returned.
- * When a billable process is selected, record it in 'bill_ptr', so that the 
- * clock task can tell who to bill for system time.
- *
- * This function always uses the run queues of the local cpu!
- */
-  register struct proc *rp;			/* process to run */
+static struct proc * pick_proc(void){
+  register struct proc *cursor;			/* process to run */
   struct proc **rdy_head;
   int q;				/* iterate over queues */
-
-  /* Check each of the scheduling queues for ready processes. The number of
-   * queues is defined in proc.h, and priorities are set in the task table.
-   * If there are no processes ready to run, return NULL.
-   */
+  
   rdy_head = get_cpulocal_var(run_q_head);
+  // Contar soma dos bilhetes
+  int qtd_bilhetes = 0;
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
-	if(!(rp = rdy_head[q])) {
-		TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
-		continue;
-	}
-	assert(proc_is_runnable(rp));
-	if (priv(rp)->s_flags & BILLABLE)	 	
-		get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
-	return rp;
+  	if(!(cursor = rdy_head[q])) {
+			TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
+			continue;
+		}
+		while(cursor->p_nextready != NULL){
+			qtd_bilhetes += (15 - q);
+			cursor = cursor->p_nextready;
+		}
   }
-  return NULL;
+
+  float random = (float) rand() /(float)RAND_MAX;
+  int bilhete_escolhido =  (int) (random * qtd_bilhetes);
+
+  qtd_bilhetes = 0;
+
+  // Escolhendo o procewsso
+  for (q=0; q < NR_SCHED_QUEUES; q++) {	
+  	if(!(cursor = rdy_head[q])) {
+			continue;
+		}
+		while(cursor->p_nextready != NULL){
+			qtd_bilhetes += (15 - q);
+			if( qtd_bilhetes >  bilhete_escolhido)
+				break;
+			cursor = cursor->p_nextready;
+		}
+  }
+  
+	assert(proc_is_runnable(cursor));
+	if (priv(cursor)->s_flags & BILLABLE)	 	
+		get_cpulocal_var(bill_ptr) = cursor; /* bill for system time */
+
+	return cursor;
 }
 
 /*===========================================================================*
