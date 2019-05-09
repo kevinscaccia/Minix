@@ -1580,15 +1580,15 @@ void enqueue(
   // Inicio do Mecanismo 
   // Inicio do Mecanismo 
   /////////////////////////////
-  if (!rdy_head[q]) {		/* Fila vazia */
-  	rdy_head[q] = rdy_tail[q] = rp; 		/* cria nova fila*/
-  	rp->p_nextready = NULL;		/* prox = null */
-  }else { // ha elementos na fila
-
-  	if(rdy_head[q]->p_cpu_time_left > rp->p_cpu_time_left){
+  if (!rdy_head[q]) {		/* empty queue */
+  	rdy_head[q] = rdy_tail[q] = rp; 		/* create a queue */
+  	rp->p_nextready = NULL;		/* first->next = null */
+  }else { // there are a queue
+  	// do the insertion on the correct index
+  	if( rp->p_cpu_time_left < rdy_head[q]->p_cpu_time_left ){
   		rp->p_nextready=rdy_head[q];/*rp is the new head*/
   		rdy_head[q]=rp;
-   	}else if(rdy_tail[q]->p_cpu_time_left < rp->p_cpu_time_left){
+   	}else if( rp->p_cpu_time_left > rdy_tail[q]->p_cpu_time_left ){
       rdy_tail[q]->p_nextready=rp;/*rp is the new tail*/
       rp->p_nextready=NULL;
       rdy_tail[q]=rp;
