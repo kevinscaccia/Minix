@@ -2,9 +2,7 @@
 #include <signal.h>
 #include <assert.h>
 #include <string.h>
-#include <stdlib.h>
 #include <time.h>
-
 
 #include "vm.h"
 #include "clock.h"
@@ -1761,6 +1759,10 @@ void dequeue(struct proc *rp)
 #endif
 }
 
+void waitFor (unsigned int secs) {
+    unsigned int retTime = time(0) + secs;   // Get finishing time.
+    while (time(0) < retTime);               // Loop until it arrives.
+}
 /*===========================================================================*
  *				pick_proc				     * 
  *===========================================================================*/
@@ -1783,8 +1785,8 @@ static struct proc * pick_proc(void){
 		}
   }
 
-  float random = (float) rand() /(float)RAND_MAX;
-  int bilhete_escolhido =  (int) (random * qtd_bilhetes);
+  //float random = (float) rand() /(float)RAND_MAX;
+  int bilhete_escolhido =  (int) (qtd_bilhetes/2);//(int) (random * qtd_bilhetes);
 
   qtd_bilhetes = 0;
 
@@ -1800,11 +1802,11 @@ static struct proc * pick_proc(void){
 			cursor = cursor->p_nextready;
 		}
   }
-  
+  waitFor(1);
 	assert(proc_is_runnable(cursor));
 	if (priv(cursor)->s_flags & BILLABLE)	 	
 		get_cpulocal_var(bill_ptr) = cursor; /* bill for system time */
-
+	TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););	
 	return cursor;
 }
 
