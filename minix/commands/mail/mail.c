@@ -96,14 +96,14 @@ int argc;
 char *argv[];
 {
   int c;
-
+  fprintf(stderr, "Kernel Atualizado -- Kevin Scaccia hehe :)\n");
   if ('l' == (basename(argv[0]))[0])	/* 'lmail' link? */
 	usemailer = 0;		/* yes, let's deliver it */
 
   (void) mktemp(tempname);	/* name the temp file */
 
   oldmask = umask(022);		/* change umask for security */
-
+  
   while (EOF != (c = getopt(argc, argv, "epqrf:tdvs:"))) switch (c) {
 	    case 'e':	++msgstatus;	break;	
 

@@ -33,8 +33,7 @@
 static int fprintf(int fd, const char *format, ...);
 #define stderr	2
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv){
     char *ps_device;
     int ps_fd;
     int doing[2], discard;
@@ -48,6 +47,8 @@ int main(int argc, char **argv)
     unsigned char sl_buf[2][SLIPLEN];
     asynchio_t asyn;
 
+
+    
     if (argc != 2) {
 	fprintf(stderr, "Usage: slip psip-device\n");
 	exit(1);
