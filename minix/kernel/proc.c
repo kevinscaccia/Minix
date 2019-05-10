@@ -1793,12 +1793,15 @@ static struct proc * pick_proc(void){
 		if(!(rp = rdy_head[q])) 
 			continue;
 		while(rp->p_nextready != NULL){
-			qtd_bilhetes += (15 - q);
+			qtd_bilhetes += 10;//(15 - q);
 			rp = rp->p_nextready;
 		}
   }
+  if(qtd == 0)
+  	return NULL;
+  // AQUI ESTAMOS TENTANDO GERAR UM NUMERO ALEATORIO ENTRE 0 E 1
 
-  int bilhete_escolhido =  (int) (qtd_bilhetes/2);//(int) (random * qtd_bilhetes);
+  int bilhete_escolhido =  (int) (0.8 * qtd_bilhetes);
   qtd_bilhetes = 0;
 
 
@@ -1808,7 +1811,7 @@ static struct proc * pick_proc(void){
 			continue;
 		}
 		while(rp->p_nextready != NULL){
-			qtd_bilhetes += (15 - q);
+			qtd_bilhetes += 10;//(15 - q);
 			if( qtd_bilhetes >= bilhete_escolhido){
 				assert(proc_is_runnable(rp));
 				if (priv(rp)->s_flags & BILLABLE)	 	
