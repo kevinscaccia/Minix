@@ -1783,48 +1783,40 @@ void dequeue(struct proc *rp)
  *				pick_proc				     * 
  *===========================================================================*/
 static struct proc * pick_proc(void){
-  register struct proc *cursor;			/* process to run */
+  register struct proc *rp;			/* process to run */
   struct proc **rdy_head;
   int q;				/* iterate over queues */
-  
+
   rdy_head = get_cpulocal_var(run_q_head);
-  // Contar soma dos bilhetes
   int qtd_bilhetes = 0;
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
-  	if(!(cursor = rdy_head[q])) {
+		if(!(rp = rdy_head[q])) 
+			continue;
+		while(rp->p_nextready != NULL){
+			qtd_bilhetes += (15 - q);
+			rp = rp->p_nextready;
+		}
+  }
+
+
+
+  for (q=0; q < NR_SCHED_QUEUES; q++) {	
+		if(!(rp = rdy_head[q])) {
 			TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
 			continue;
 		}
-		while(cursor->p_nextready != NULL){
-			qtd_bilhetes += (15 - q);
-			cursor = cursor->p_nextready;
-		}
+		assert(proc_is_runnable(rp));
+		if (priv(rp)->s_flags & BILLABLE)	 	
+			get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
+		return rp;
   }
 
-  //float random = (float) rand() /(float)RAND_MAX;
-  int bilhete_escolhido =  (int) (qtd_bilhetes/2);//(int) (random * qtd_bilhetes);
 
-  qtd_bilhetes = 0;
 
-  // Escolhendo o procewsso
-  for (q=0; q < NR_SCHED_QUEUES; q++) {	
-  	if(!(cursor = rdy_head[q])) {
-			continue;
-		}
-		while(cursor->p_nextready != NULL){
-			qtd_bilhetes += (15 - q);
-			if( qtd_bilhetes >  bilhete_escolhido)
-				break;
-			cursor = cursor->p_nextready;
-		}
-  }
-  //waitFor(1);
-	assert(proc_is_runnable(cursor));
-	if (priv(cursor)->s_flags & BILLABLE)	 	
-		get_cpulocal_var(bill_ptr) = cursor; /* bill for system time */
-	TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););	
-	return cursor;
+  return NULL;
 }
+
+
 
 /*===========================================================================*
  *				endpoint_lookup				     *
