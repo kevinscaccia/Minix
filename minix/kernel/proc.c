@@ -1792,12 +1792,13 @@ static struct proc * pick_proc(void){
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
 		if(!(rp = rdy_head[q])) 
 			continue;
+		qtd_bilhetes += 10;//(15 - q);// conta a cabeca
 		while(rp->p_nextready != NULL){
 			qtd_bilhetes += 10;//(15 - q);
 			rp = rp->p_nextready;
 		}
   }
-  if(qtd == 0)
+  if(qtd == 0)// todas as filas vazias
   	return NULL;
   // AQUI ESTAMOS TENTANDO GERAR UM NUMERO ALEATORIO ENTRE 0 E 1
 
@@ -1810,6 +1811,7 @@ static struct proc * pick_proc(void){
 			TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
 			continue;
 		}
+		qtd_bilhetes += 10;
 		while(rp->p_nextready != NULL){
 			qtd_bilhetes += 10;//(15 - q);
 			if( qtd_bilhetes >= bilhete_escolhido){
