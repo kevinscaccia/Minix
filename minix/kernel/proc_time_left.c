@@ -1614,16 +1614,42 @@ void enqueue(
   rdy_head = get_cpu_var(rp->p_cpu, run_q_head);
   rdy_tail = get_cpu_var(rp->p_cpu, run_q_tail);
 
-  /* Now add the process to the queue. */
-  if (!rdy_head[q]) {		/* add to empty queue */
-      rdy_head[q] = rdy_tail[q] = rp; 		/* create a new queue */
-      rp->p_nextready = NULL;		/* mark new end */
-  } 
-  else {					/* add to tail of queue */
-      rdy_tail[q]->p_nextready = rp;		/* chain tail of queue */	
-      rdy_tail[q] = rp;				/* set new queue tail */
-      rp->p_nextready = NULL;		/* mark new end */
+
+
+
+  /////////////////////////////
+  // Inicio do Mecanismo de Sorteio
+  // Inicio do Mecanismo de Sorteio
+  // Inicio do Mecanismo de Sorteio 
+  /////////////////////////////
+  if (!rdy_head[q]) {		/* empty queue */
+  	rdy_head[q] = rdy_tail[q] = rp; 		/* create a queue */
+  	rp->p_nextready = NULL;		/* first->next = null */
+  }else { // there are a queue
+  	// do the insertion on the correct index
+  	if( rp->p_cpu_time_left < rdy_head[q]->p_cpu_time_left ){
+  		rp->p_nextready=rdy_head[q];/*rp is the new head*/
+  		rdy_head[q]=rp;
+   	}else if( rp->p_cpu_time_left >= rdy_tail[q]->p_cpu_time_left ){
+      rdy_tail[q]->p_nextready=rp;/*rp is the new tail*/
+      rp->p_nextready=NULL;
+      rdy_tail[q]=rp;
+    }else{
+    	struct proc *cursor = rdy_head[q];
+    	while(cursor->p_nextready->p_cpu_time_left < rp->p_cpu_time_left)
+          cursor=cursor->p_nextready;// find rp location in queue
+        /*insert rp between index and index->p_nextready*/
+        rp->p_nextready = cursor->p_nextready;
+        cursor->p_nextready = rp;
+    }
+
   }
+  /////////////////////////////
+  // Fim do Mecanismo de Sorteio 
+  // Fim do Mecanismo de Sorteio 
+  // Fim do Mecanismo de Sorteio 
+  /////////////////////////////
+
 
   if (cpuid == rp->p_cpu) {
 	  /*
@@ -1782,48 +1808,34 @@ void dequeue(struct proc *rp)
 /*===========================================================================*
  *				pick_proc				     * 
  *===========================================================================*/
-static struct proc * pick_proc(void){
-  register struct proc *cursor;			/* process to run */
+static struct proc * pick_proc(void)
+{
+/* Decide who to run now.  A new process is selected and returned.
+ * When a billable process is selected, record it in 'bill_ptr', so that the 
+ * clock task can tell who to bill for system time.
+ *
+ * This function always uses the run queues of the local cpu!
+ */
+  register struct proc *rp;			/* process to run */
   struct proc **rdy_head;
   int q;				/* iterate over queues */
-  
+
+  /* Check each of the scheduling queues for ready processes. The number of
+   * queues is defined in proc.h, and priorities are set in the task table.
+   * If there are no processes ready to run, return NULL.
+   */
   rdy_head = get_cpulocal_var(run_q_head);
-  // Contar soma dos bilhetes
-  int qtd_bilhetes = 0;
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
-  	if(!(cursor = rdy_head[q])) {
-			TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
-			continue;
-		}
-		while(cursor->p_nextready != NULL){
-			qtd_bilhetes += (15 - q);
-			cursor = cursor->p_nextready;
-		}
+	if(!(rp = rdy_head[q])) {
+		TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
+		continue;
+	}
+	assert(proc_is_runnable(rp));
+	if (priv(rp)->s_flags & BILLABLE)	 	
+		get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
+	return rp;
   }
-
-  //float random = (float) rand() /(float)RAND_MAX;
-  int bilhete_escolhido =  (int) (qtd_bilhetes/2);//(int) (random * qtd_bilhetes);
-
-  qtd_bilhetes = 0;
-
-  // Escolhendo o procewsso
-  for (q=0; q < NR_SCHED_QUEUES; q++) {	
-  	if(!(cursor = rdy_head[q])) {
-			continue;
-		}
-		while(cursor->p_nextready != NULL){
-			qtd_bilhetes += (15 - q);
-			if( qtd_bilhetes >  bilhete_escolhido)
-				break;
-			cursor = cursor->p_nextready;
-		}
-  }
-  //waitFor(1);
-	assert(proc_is_runnable(cursor));
-	if (priv(cursor)->s_flags & BILLABLE)	 	
-		get_cpulocal_var(bill_ptr) = cursor; /* bill for system time */
-	TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););	
-	return cursor;
+  return NULL;
 }
 
 /*===========================================================================*
