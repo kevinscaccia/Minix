@@ -1594,13 +1594,29 @@ asyn_error:
  *===========================================================================*/
 void enqueue(
   register struct proc *rp	/* this process is now runnable */
-){
+)
+{
+/* Add 'rp' to one of the queues of runnable processes.  This function is 
+ * responsible for inserting a process into one of the scheduling queues. 
+ * The mechanism is implemented here.   The actual scheduling policy is
+ * defined in sched() and pick_proc().
+ *
+ * This function can be used x-cpu as it always uses the queues of the cpu the
+ * process is assigned to.
+ */
   int q = rp->p_priority;	 		/* scheduling queue to use */
   struct proc **rdy_head, **rdy_tail;
+  
   assert(proc_is_runnable(rp));
+
   assert(q >= 0);
+
   rdy_head = get_cpu_var(rp->p_cpu, run_q_head);
   rdy_tail = get_cpu_var(rp->p_cpu, run_q_tail);
+
+
+
+
   /////////////////////////////
   // Inicio do Mecanismo de Sorteio
   // Inicio do Mecanismo de Sorteio
@@ -1619,12 +1635,15 @@ void enqueue(
       rp->p_nextready=NULL;
       rdy_tail[q]=rp;
     }else{
+    	rp->p_nextready=rdy_head[q];/*rp is the new head*/
+  		rdy_head[q]=rp;
+    	/*
     	struct proc *cursor = rdy_head[q];
     	while(cursor->p_nextready->p_cpu_time_left < rp->p_cpu_time_left)
           cursor=cursor->p_nextready;// find rp location in queue
-        /*insert rp between index and index->p_nextready*/
+        /*insert rp between index and index->p_nextready* /
         rp->p_nextready = cursor->p_nextready;
-        cursor->p_nextready = rp;
+        cursor->p_nextready = rp;*/
     }
 
   }
@@ -1634,7 +1653,7 @@ void enqueue(
   // Fim do Mecanismo de Sorteio 
   /////////////////////////////
 
-  // Preepção do atual assim que posto na fila
+
   if (cpuid == rp->p_cpu) {
 	  /*
 	   * enqueueing a process with a higher priority than the current one,
