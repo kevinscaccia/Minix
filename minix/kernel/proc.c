@@ -1798,6 +1798,8 @@ static struct proc * pick_proc(void){
 		}
   }
 
+  int bilhete_escolhido =  (int) (qtd_bilhetes/2);//(int) (random * qtd_bilhetes);
+  qtd_bilhetes = 0;
 
 
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
@@ -1805,15 +1807,17 @@ static struct proc * pick_proc(void){
 			TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
 			continue;
 		}
-		assert(proc_is_runnable(rp));
-		if (priv(rp)->s_flags & BILLABLE)	 	
-			get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
-		return rp;
+		while(rp->p_nextready != NULL){
+			qtd_bilhetes += (15 - q);
+			if( qtd_bilhetes >= bilhete_escolhido)
+				break;
+			rp = rp->p_nextready;
+		}
   }
-
-
-
-  return NULL;
+  assert(proc_is_runnable(rp));
+	if (priv(rp)->s_flags & BILLABLE)	 	
+			get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
+	return rp;
 }
 
 
