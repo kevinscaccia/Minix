@@ -1809,15 +1809,16 @@ static struct proc * pick_proc(void){
 		}
 		while(rp->p_nextready != NULL){
 			qtd_bilhetes += (15 - q);
-			if( qtd_bilhetes >= bilhete_escolhido)
-				break;
+			if( qtd_bilhetes >= bilhete_escolhido){
+				assert(proc_is_runnable(rp));
+				if (priv(rp)->s_flags & BILLABLE)	 	
+					get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
+					return rp;	
+			}
 			rp = rp->p_nextready;
 		}
   }
-  assert(proc_is_runnable(rp));
-	if (priv(rp)->s_flags & BILLABLE)	 	
-			get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
-	return rp;
+	return NULL;
 }
 
 
