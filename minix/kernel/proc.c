@@ -1788,7 +1788,7 @@ static struct proc * pick_proc(void){
   int q;				/* iterate over queues */
 
   rdy_head = get_cpulocal_var(run_q_head);
-  int qtd_bilhetes = 0;
+  int qtd_bilhetes = 0; // quantidade de bilhetes disponiveis
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
 		if(!(rp = rdy_head[q])) 
 			continue;
@@ -1803,6 +1803,7 @@ static struct proc * pick_proc(void){
   // AQUI ESTAMOS TENTANDO GERAR UM NUMERO ALEATORIO ENTRE 0 E 1
 
   int bilhete_escolhido =  (int) (0.8 * qtd_bilhetes);
+  printf("QTD: %d ESC: %d",qtd_bilhetes, bilhete_escolhido);
   qtd_bilhetes = 0;
 
 
@@ -1814,13 +1815,13 @@ static struct proc * pick_proc(void){
 		qtd_bilhetes += 10;
 
 		while(rp->p_nextready != NULL){
-			qtd_bilhetes += 10;//(15 - q);
 			if( qtd_bilhetes >= bilhete_escolhido){
 				assert(proc_is_runnable(rp));
 				if (priv(rp)->s_flags & BILLABLE)	 	
 					get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
 					return rp;	
 			}
+			qtd_bilhetes += 10;//(15 - q);
 			rp = rp->p_nextready;
 		}
 		if( qtd_bilhetes >= bilhete_escolhido){
@@ -1828,6 +1829,8 @@ static struct proc * pick_proc(void){
 				if (priv(rp)->s_flags & BILLABLE)	 	
 					get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
 					return rp;	
+		 }else{
+		 	printf("ERROOOOOO");
 		 }
   }
 	return NULL;
