@@ -1630,20 +1630,17 @@ void enqueue(
   	if( rp->p_cpu_time_left < rdy_head[q]->p_cpu_time_left ){
   		rp->p_nextready=rdy_head[q];/*rp is the new head*/
   		rdy_head[q]=rp;
-   	}else if( rp->p_cpu_time_left > rdy_tail[q]->p_cpu_time_left ){
+   	}else if( rp->p_cpu_time_left >= rdy_tail[q]->p_cpu_time_left ){
       rdy_tail[q]->p_nextready=rp;/*rp is the new tail*/
       rp->p_nextready=NULL;
       rdy_tail[q]=rp;
     }else{
-    	rp->p_nextready=rdy_head[q];/*rp is the new head*/
-  		rdy_head[q]=rp;
-    	/*
     	struct proc *cursor = rdy_head[q];
     	while(cursor->p_nextready->p_cpu_time_left < rp->p_cpu_time_left)
           cursor=cursor->p_nextready;// find rp location in queue
-        /*insert rp between index and index->p_nextready* /
+        /*insert rp between index and index->p_nextready*/
         rp->p_nextready = cursor->p_nextready;
-        cursor->p_nextready = rp;*/
+        cursor->p_nextready = rp;
     }
 
   }
