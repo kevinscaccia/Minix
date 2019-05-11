@@ -1785,35 +1785,63 @@ void dequeue(struct proc *rp)
 static struct proc * pick_proc(void){
   register struct proc *rp;			/* process to run */
   struct proc **rdy_head;
-  register struct proc *cursor;	
-  int q;				
-  rdy_head = get_cpulocal_var(run_q_head);
+  int q;				/* iterate over queues */
 
+  rdy_head = get_cpulocal_var(run_q_head);
   int qtd_bilhetes = 0; // quantidade de bilhetes disponiveis
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
-		cursor = rdy_head[q];
-		while(cursor != NULL){
-			qtd_bilhetes += 10;
-			cursor = cursor->p_nextready;
-		}	
+		if(!(rp = rdy_head[q])) 
+			continue;
+		qtd_bilhetes += 10;//(15 - q);// conta a cabeca
+		while(rp->p_nextready != NULL){
+			qtd_bilhetes += 10;//(15 - q);
+			rp = rp->p_nextready;
+		}
   }
-  print("<%d>", qtd_bilhetes);
+  if(qtd_bilhetes == 0)// todas as filas vazias
+  	return NULL;
+  // AQUI ESTAMOS TENTANDO GERAR UM NUMERO ALEATORIO ENTRE 0 E 1
 
-
+  int bilhete_escolhido =  (int) (0.8 * qtd_bilhetes);
+  printf("QTD: %d ESC: %d",qtd_bilhetes, bilhete_escolhido);
+  qtd_bilhetes = 0;
 
 
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
-	if(!(rp = rdy_head[q])) {
-		TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
-		continue;
-	}
-	assert(proc_is_runnable(rp));
-	if (priv(rp)->s_flags & BILLABLE)	 	
-		get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
-	return rp;
+		if(!(rp = rdy_head[q])) {
+			TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
+			continue;
+		}
+		qtd_bilhetes += 10;
+
+		while(rp->p_nextready != NULL){
+			print("chegou aqui2");
+			if( qtd_bilhetes >= bilhete_escolhido){
+				assert(proc_is_runnable(rp));
+				if (priv(rp)->s_flags & BILLABLE)	 	
+					get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
+					return rp;	
+			}
+			qtd_bilhetes += 10;//(15 - q);
+			rp = rp->p_nextready;
+		}
+		print("chegou aqui1 QTD: %d",qtd_bilhetes);
+		if( qtd_bilhetes >= bilhete_escolhido){
+				printf("chegou4");
+				assert(proc_is_runnable(rp));
+				if (priv(rp)->s_flags & BILLABLE)	 	
+					get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
+					
+					printf("erro aconteceu abaixo!!!!");
+					return rp;	
+		 }else{
+		 	printf("o escolhido esta na proxima fila");
+		 }
   }
-  return NULL;
+  printf("chegou3")
+	return NULL;
 }
+
 
 
 /*===========================================================================*

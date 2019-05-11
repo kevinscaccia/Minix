@@ -1,32 +1,6 @@
-/* This file contains essentially all of the process and message handling.
- * Together with "mpx.s" it forms the lowest layer of the MINIX kernel.
- * There is one entry point from the outside:
- *
- *   sys_call: 	      a system call, i.e., the kernel is trapped with an INT
- *
- * Changes:
- *   Aug 19, 2005     rewrote scheduling code  (Jorrit N. Herder)
- *   Jul 25, 2005     rewrote system call handling  (Jorrit N. Herder)
- *   May 26, 2005     rewrote message passing functions  (Jorrit N. Herder)
- *   May 24, 2005     new notification system call  (Jorrit N. Herder)
- *   Oct 28, 2004     nonblocking send and receive calls  (Jorrit N. Herder)
- *
- * The code here is critical to make everything work and is important for the
- * overall performance of the system. A large fraction of the code deals with
- * list manipulation. To make this both easy to understand and fast to execute 
- * pointer pointers are used throughout the code. Pointer pointers prevent
- * exceptions for the head or tail of a linked list. 
- *
- *  node_t *queue, *new_node;	// assume these as global variables
- *  node_t **xpp = &queue; 	// get pointer pointer to head of queue 
- *  while (*xpp != NULL) 	// find last pointer of the linked list
- *      xpp = &(*xpp)->next;	// get pointer to next pointer 
- *  *xpp = new_node;		// now replace the end (the NULL pointer) 
- *  new_node->next = NULL;	// and mark the new end of the list
- * 
- * For example, when adding a new node to the end of the list, one normally 
- * makes an exception for an empty list and looks up the end of the list for 
- * nonempty lists. As shown above, this is not required with pointer pointers.
+/*
+	Time-Left ASC
+
  */
 
 #include <stddef.h>
@@ -1594,36 +1568,46 @@ asyn_error:
  *===========================================================================*/
 void enqueue(
   register struct proc *rp	/* this process is now runnable */
-)
-{
-/* Add 'rp' to one of the queues of runnable processes.  This function is 
- * responsible for inserting a process into one of the scheduling queues. 
- * The mechanism is implemented here.   The actual scheduling policy is
- * defined in sched() and pick_proc().
- *
- * This function can be used x-cpu as it always uses the queues of the cpu the
- * process is assigned to.
- */
+){
   int q = rp->p_priority;	 		/* scheduling queue to use */
   struct proc **rdy_head, **rdy_tail;
-  
   assert(proc_is_runnable(rp));
-
   assert(q >= 0);
-
   rdy_head = get_cpu_var(rp->p_cpu, run_q_head);
   rdy_tail = get_cpu_var(rp->p_cpu, run_q_tail);
+  /////////////////////////////
+  // Inicio do Mecanismo TimeLeft ASC
+  // Inicio do Mecanismo TimeLeft ASC
+  // Inicio do Mecanismo TimeLeft ASC 
+  /////////////////////////////
+  if (!rdy_head[q]) {		/* empty queue */
+  	rdy_head[q] = rdy_tail[q] = rp; 		/* create a queue */
+  	rp->p_nextready = NULL;		/* first->next = null */
+  }else { // there are a queue
+  	// do the insertion on the correct index
+  	if( rp->p_cpu_time_left < rdy_head[q]->p_cpu_time_left ){
+  		rp->p_nextready=rdy_head[q];/*rp is the new head*/
+  		rdy_head[q]=rp;
+   	}else if( rp->p_cpu_time_left >= rdy_tail[q]->p_cpu_time_left ){
+      rdy_tail[q]->p_nextready=rp;/*rp is the new tail*/
+      rp->p_nextready=NULL;
+      rdy_tail[q]=rp;
+    }else{
+    	struct proc *cursor = rdy_head[q];
+    	while(cursor->p_nextready->p_cpu_time_left < rp->p_cpu_time_left)
+          cursor=cursor->p_nextready;// find rp location in queue
+        /*insert rp between index and index->p_nextready*/
+        rp->p_nextready = cursor->p_nextready;
+        cursor->p_nextready = rp;
+    }
 
-  /* Now add the process to the queue. */
-  if (!rdy_head[q]) {		/* add to empty queue */
-      rdy_head[q] = rdy_tail[q] = rp; 		/* create a new queue */
-      rp->p_nextready = NULL;		/* mark new end */
-  } 
-  else {					/* add to tail of queue */
-      rdy_tail[q]->p_nextready = rp;		/* chain tail of queue */	
-      rdy_tail[q] = rp;				/* set new queue tail */
-      rp->p_nextready = NULL;		/* mark new end */
   }
+  /////////////////////////////
+  // Fim do Mecanismo TimeLeft ASC
+  // Fim do Mecanismo TimeLeft ASC
+  // Fim do Mecanismo TimeLeft ASC
+  /////////////////////////////
+
 
   if (cpuid == rp->p_cpu) {
 	  /*
@@ -1782,26 +1766,23 @@ void dequeue(struct proc *rp)
 /*===========================================================================*
  *				pick_proc				     * 
  *===========================================================================*/
-static struct proc * pick_proc(void){
+static struct proc * pick_proc(void)
+{
+/* Decide who to run now.  A new process is selected and returned.
+ * When a billable process is selected, record it in 'bill_ptr', so that the 
+ * clock task can tell who to bill for system time.
+ *
+ * This function always uses the run queues of the local cpu!
+ */
   register struct proc *rp;			/* process to run */
   struct proc **rdy_head;
-  register struct proc *cursor;	
-  int q;				
+  int q;				/* iterate over queues */
+
+  /* Check each of the scheduling queues for ready processes. The number of
+   * queues is defined in proc.h, and priorities are set in the task table.
+   * If there are no processes ready to run, return NULL.
+   */
   rdy_head = get_cpulocal_var(run_q_head);
-
-  int qtd_bilhetes = 0; // quantidade de bilhetes disponiveis
-  for (q=0; q < NR_SCHED_QUEUES; q++) {	
-		cursor = rdy_head[q];
-		while(cursor != NULL){
-			qtd_bilhetes += 10;
-			cursor = cursor->p_nextready;
-		}	
-  }
-  print("<%d>", qtd_bilhetes);
-
-
-
-
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
 	if(!(rp = rdy_head[q])) {
 		TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
@@ -1814,7 +1795,6 @@ static struct proc * pick_proc(void){
   }
   return NULL;
 }
-
 
 /*===========================================================================*
  *				endpoint_lookup				     *
