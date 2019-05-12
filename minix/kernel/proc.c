@@ -40,6 +40,7 @@
 #include "arch_proto.h"
 
 #include <minix/syslib.h>
+
 /* Scheduling and message passing functions */
 static void idle(void);
 /**
@@ -47,21 +48,6 @@ static void idle(void);
 static int mini_send(struct proc *caller_ptr, endpoint_t dst_e, message
 	*m_ptr, int flags);
 */
-// RANDOM
-typedef struct { int state;  int inc; } pcg32_random_t;
-int pcg32_random_r(pcg32_random_t* rng){
-    int oldstate = rng->state;
-    // Advance internal state
-    rng->state = oldstate * 6364136223846793005ULL + (rng->inc|1);
-    // Calculate output function (XSH RR), uses old state for max ILP
-    int xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
-    int rot = oldstate >> 59u;
-    return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
-}
-pcg32_random_t RANDOM_STR;RANDOM_STR.state = 7;RANDOM_STR.inc = 13;
-
-//  RANDOM
-
 static int mini_receive(struct proc *caller_ptr, endpoint_t src,
 	message *m_buff_usr, int flags);
 static int mini_senda(struct proc *caller_ptr, asynmsg_t *table, size_t
@@ -1811,7 +1797,7 @@ static struct proc * pick_proc(void){
 			cursor = cursor->p_nextready;
 		}	
   }
-
+ 
 
 
 
