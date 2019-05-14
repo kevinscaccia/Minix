@@ -1,32 +1,6 @@
-/* This file contains essentially all of the process and message handling.
- * Together with "mpx.s" it forms the lowest layer of the MINIX kernel.
- * There is one entry point from the outside:
- *
- *   sys_call: 	      a system call, i.e., the kernel is trapped with an INT
- *
- * Changes:
- *   Aug 19, 2005     rewrote scheduling code  (Jorrit N. Herder)
- *   Jul 25, 2005     rewrote system call handling  (Jorrit N. Herder)
- *   May 26, 2005     rewrote message passing functions  (Jorrit N. Herder)
- *   May 24, 2005     new notification system call  (Jorrit N. Herder)
- *   Oct 28, 2004     nonblocking send and receive calls  (Jorrit N. Herder)
- *
- * The code here is critical to make everything work and is important for the
- * overall performance of the system. A large fraction of the code deals with
- * list manipulation. To make this both easy to understand and fast to execute 
- * pointer pointers are used throughout the code. Pointer pointers prevent
- * exceptions for the head or tail of a linked list. 
- *
- *  node_t *queue, *new_node;	// assume these as global variables
- *  node_t **xpp = &queue; 	// get pointer pointer to head of queue 
- *  while (*xpp != NULL) 	// find last pointer of the linked list
- *      xpp = &(*xpp)->next;	// get pointer to next pointer 
- *  *xpp = new_node;		// now replace the end (the NULL pointer) 
- *  new_node->next = NULL;	// and mark the new end of the list
- * 
- * For example, when adding a new node to the end of the list, one normally 
- * makes an exception for an empty list and looks up the end of the list for 
- * nonempty lists. As shown above, this is not required with pointer pointers.
+/*
+	Sorteio - Bilhetes
+
  */
 
 #include <stddef.h>
@@ -1778,53 +1752,75 @@ void dequeue(struct proc *rp)
   assert(runqueues_ok_local());
 #endif
 }
+/////////////////////////////
+// Inicio do Mecanismo de Sorteio
+// Inicio do Mecanismo de Sorteio
+// Inicio do Mecanismo de Sorteio
+/////////////////////////////
 // *Really* minimal PCG32 code / (c) 2014 M.E. O'Neill / pcg-random.org
 // Licensed under Apache License 2.0 (NO WARRANTY, etc. see website)
-typedef struct { int state;  int inc; } pcg32_random_t;
-int pcg32_random_r(pcg32_random_t* rng){
-    int oldstate = rng->state;
+typedef struct { long state;  long inc; } pcg32_random_t;
+long pcg32_random_r(pcg32_random_t* rng){
+    long oldstate = rng->state;
     // Advance internal state
     rng->state = oldstate * 6364136223846793005ULL + (rng->inc|1);
     // Calculate output function (XSH RR), uses old state for max ILP
-    int xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
-    int rot = oldstate >> 59u;
+    long xorshifted = ((oldstate >> 18u) ^ oldstate) >> 27u;
+    long rot = oldstate >> 7u;
     return (xorshifted >> rot) | (xorshifted << ((-rot) & 31));
 }
+static pcg32_random_t random_seed = {7, 13};
 /*===========================================================================*
  *				pick_proc				     * 
  *===========================================================================*/
 static struct proc * pick_proc(void){
   register struct proc *rp;			/* process to run */
   struct proc **rdy_head;
-  register struct proc *cursor;	
+  register struct proc *cursor;	// auxiliary cursor
   int q;				
   rdy_head = get_cpulocal_var(run_q_head);
-
-  int qtd_bilhetes = 0; // quantidade de bilhetes disponiveis
+  ////////////////////////////////////////////////
+  int total_tickets = 0;
+  // count total tickets avaliable
   for (q=0; q < NR_SCHED_QUEUES; q++) {	
-		cursor = rdy_head[q];
-		while(cursor != NULL){
-			qtd_bilhetes += 10;
-			cursor = cursor->p_nextready;
-		}	
+	cursor = rdy_head[q];
+	while(cursor != NULL){
+		total_tickets += (NR_SCHED_QUEUES - q)+1;  
+		cursor = cursor->p_nextready;
+	}	
   }
- 
+  // generate random ticket  
+  long ticket = pcg32_random_r(&random_seed);
+  if(ticket < 0) // if random ticket is negative
+    ticket = -ticket;
+    
+  if(total_tickets == 0)  // avoid zero division
+    return NULL;
 
-
-
-  for (q=0; q < NR_SCHED_QUEUES; q++) {	
-	if(!(rp = rdy_head[q])) {
-		TRACE(VF_PICKPROC, printf("cpu %d queue %d empty\n", cpuid, q););
-		continue;
+  ticket = ticket % total_tickets; // between 0 and total_tickets
+  
+  total_tickets = 0;  // will be used to new count  
+  for(q=0; q < NR_SCHED_QUEUES; q++){
+    cursor = rdy_head[q];
+    while(cursor != NULL){  // percorre a fila q
+      total_tickets += (NR_SCHED_QUEUES - q)+1; 
+   	if(total_tickets >= ticket){  // found
+	  assert(proc_is_runnable(cursor));
+	  if(priv(cursor)->s_flags & BILLABLE)
+	    get_cpulocal_var(bill_ptr) = cursor;
+	  
+	    return cursor;
 	}
-	assert(proc_is_runnable(rp));
-	if (priv(rp)->s_flags & BILLABLE)	 	
-		get_cpulocal_var(bill_ptr) = rp; /* bill for system time */
-	return rp;
+	cursor = cursor->p_nextready;
+      }
   }
   return NULL;
 }
-
+/////////////////////////////
+// Fim do Mecanismo de Sorteio
+// Fim do Mecanismo de Sorteio
+// Fim do Mecanismo de Sorteio
+/////////////////////////////
 
 /*===========================================================================*
  *				endpoint_lookup				     *
